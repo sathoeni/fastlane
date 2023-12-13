@@ -4,7 +4,7 @@ require_relative 'module'
 
 module Frameit
   class FrameDownloader
-    HOST_URL = "https://fastlane.github.io/frameit-frames"
+    HOST_URL = "https://sathoeni.github.io/frameit-frames"
 
     def download_frames
       print_disclaimer
