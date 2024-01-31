@@ -169,10 +169,13 @@ open class Snapshot: NSObject {
 
             let screenshot = XCUIScreen.main.screenshot()
             #if os(iOS) && !targetEnvironment(macCatalyst)
-            let image = XCUIDevice.shared.orientation.isLandscape ?  fixLandscapeOrientation(image: screenshot.image) : screenshot.image
+            var image = XCUIDevice.shared.orientation.isLandscape ?  fixLandscapeOrientation(image: screenshot.image) : screenshot.image
             #else
-            let image = screenshot.image
+            var image = screenshot.image
             #endif
+        
+            // Fix the image size (necessary for some devices due to a bug in XCode 15.x)
+            image = fixSize(image: image)
 
             guard var simulator = ProcessInfo().environment["SIMULATOR_DEVICE_NAME"], let screenshotsDir = screenshotsDirectory else { return }
 
@@ -210,6 +213,20 @@ open class Snapshot: NSObject {
                 return image
             }
         #endif
+    }
+    
+    
+    /// Fixes the size for some devices where XCUIScreen doesn't create accurate screenshots (Bug in XCode 15.x)
+    /// E.g. iPhone 14 Pro has a screen size of 1179 x 2556 but screenshot create by XCUIScreen is 1178x2556.
+    /// There's a FB13569779
+    /// - Parameter image: The source image
+    /// - Returns: The scaled image (if necessary)
+    class func fixSize(image: UIImage) -> UIImage {
+        guard image.size.width * 3 == 1178 else {
+            return image
+        }
+        
+        return image.scaleToFill(size: .init(width: 393, height: image.size.height))
     }
 
     class func waitForLoadingIndicatorToDisappear(within timeout: TimeInterval) {
@@ -308,6 +325,22 @@ private extension CGFloat {
     }
 }
 
+// MARK: - UIImage Extension
+
+private extension UIImage {
+    
+    /// Scale an image to a given size. Pixels are interpolated
+    /// - Parameter targetSize: The new size of the image
+    /// - Returns: The scaled image
+    func scaleToFill(size targetSize: CGSize) -> UIImage {
+        
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        return renderer.image { (context) in
+            self.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+    }
+}
+
 // Please don't remove the lines below
 // They are used to detect outdated configuration files
-// SnapshotHelperVersion [1.30]
+// SnapshotHelperVersion [1.31]
